@@ -11,20 +11,20 @@ def binary_to_sid(binary_data):
     elif len(binary_data) == 12:
         rev = struct.unpack("<B", binary_data[0:1])[0]
         #dash = struct.unpack("<B", binary_data[1:1])[0]
-        authid = str(binary_data[2:8].encode("hex")).replace("00000000000", '')
+        authid = binary_data[2:8].hex().replace("00000000000", '')
         sub = struct.unpack("<L", binary_data[8:12])[0]
         return "S-"+str(rev)+"-"+str(authid)+"-"+str(sub)
     elif len(binary_data) > 12:
         rev = struct.unpack("<B", binary_data[0:1])[0]
-        authid = str(binary_data[2:8].encode("hex")).replace("00000000000", '')
+        authid = binary_data[2:8].hex().replace("00000000000", '')
         sub = struct.unpack("<LLLL", binary_data[8:24])
         sub = map(str,sub)
         rid = struct.unpack("<L", binary_data[24:30])[0]
         return "S-"+str(rev)+"-"+str(authid)+"-"+'-'.join(sub)+"-"+str(rid)
 
-def sid_to_username(sid, software):
+def sid_to_username(sid, software_hive):
     try:
-        key = software.open("Microsoft\\Windows NT\\CurrentVersion\\ProfileList\\"+sid)
+        key = software_hive.open("Microsoft\\Windows NT\\CurrentVersion\\ProfileList\\"+sid)
     except:
         return None
     return key.value("ProfileImagePath").value().split("\\")[-1]
@@ -174,7 +174,7 @@ def samparse(samhive):
                 results['users'][user]['Last Login Date'] = f_values[RID][0]
                 results['users'][user]['Password Reset Date'] = f_values[RID][1]
                 results['users'][user]['Password Fail Date'] = f_values[RID][2]
-                results['users'][user]['Account Flags'] = []	
+                results['users'][user]['Account Flags'] = []		
                 for flag in f_values[RID][3]:
                     results['users'][user]['Account Flags'].append(flag)
                 results['users'][user]['Failed Login Count'] = f_values[RID][4]
@@ -203,8 +203,8 @@ def samparse(samhive):
             results['groups'][groupname]['Group Description'] = bytes(data[(comment_offst+52):(comment_offst+52+comment_lngth)]).decode("utf-8").replace('\x00','')
             results['groups'][groupname]['Last Write'] = x.timestamp()
             results['groups'][groupname]['User Count'] = user_count
-            results['groups'][groupname]['Members'] = ''
-
+            results['groups'][groupname]['members-sid'] = []
+            #results['groups'][groupname]['members-username'] = []
 
             try:
                 newOffset = 0
@@ -214,28 +214,21 @@ def samparse(samhive):
                     if tmp == 257:
                         if struct.unpack("<B", data[offset:offset+1])[0] == 0: 
                             offset = offset+1
-                        results['groups'][groupname]['Members'] += binary_to_sid(data[offset:offset+12]) 
-                        username = sid_to_username(binary_to_sid(data[offset:offset+12]))
-                        #username = None
-                        if username != None:
-                            results['groups'][groupname]['Members'] += " -> " + username + "</br>"
-                        else:
-                            results['groups'][groupname]['Members'] += "\t\n"
+                        results['groups'][groupname]['members-sid'].append(binary_to_sid(data[offset:offset+12]))
+                        #username = sid_to_username(binary_to_sid(data[offset:offset+12]))
+                        username = None
+                        # TODO : Lookup SID's in Software Hive
                         newOffset += 12
                     elif tmp == 1281:
-                        results['groups'][groupname]['Members'] += binary_to_sid(data[offset:offset+28])
-                        username = sid_to_username(binary_to_sid(data[offset:offset+28]))
-                        #username = None
-                        if username != None:
-                            results['groups'][groupname]['Members'] += " -> " + username + "</br>"
-                        else:
-                            results['groups'][groupname]['Members'] += "\n"
+                        results['groups'][groupname]['members-sid'].append(binary_to_sid(data[offset:offset+28]))
+                        #username = sid_to_username(binary_to_sid(data[offset:offset+28]))
+                        # TODO : Lookup SID's in Software Hive
+                        username = None
                         newOffset += 28
-
-
             except:
-                if len(results['groups'][groupname]['Members']) == 0:
-                    results['groups'][groupname]['Members'] = 'No users in this group'
+                print("exception",e)
+                if len(results['groups'][groupname]['members-sid']) == 0:
+                    results['groups'][groupname]['members-sid'] = 'No users in this group'
                 else:
                     continue
 
@@ -252,7 +245,6 @@ if __name__ == "__main__":
         print("----- %s -----" % user)
         for key, value in results['users'][user].items():
             print("{} : {}".format(key,value))
-
         print("\n")
 
     for group in results['groups']:

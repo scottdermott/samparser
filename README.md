@@ -1,12 +1,12 @@
 # samparser
-A python script used to parse the SAM registry hive. 
 
-10/5/2015 update:
-	Can now parse groups as well
+## Ported from https://github.com/yampelo/samparser to Python3
+
+A python3 script used to parse the SAM registry hive. 
 
 Depends on python-registry
 ```
-pip install python-registry
+pip3 install python-registry
 ```
 
 Input is a sam registry hive.

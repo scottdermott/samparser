@@ -1,6 +1,6 @@
 # samparser
 
-## Ported from https://github.com/yampelo/samparser to Python3
+### Ported from https://github.com/yampelo/samparser to Python3
 
 A python3 script used to parse the SAM registry hive. 
 
